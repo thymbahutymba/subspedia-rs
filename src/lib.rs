@@ -122,8 +122,8 @@ pub struct ReqSottotitoliSerie {
 }
 
 impl ReqSottotitoliSerie {
+    /// Create a new ReqSottotitoliSerie with the given series id.
     pub fn new(id: usize) -> ReqSottotitoliSerie {
-        /// Create a new ReqSottotitoliSerie with the given series id.
         ReqSottotitoliSerie {id}
     }
 }

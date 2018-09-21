@@ -1,8 +1,15 @@
 [package]
 name = "subspedia-rs"
-version = "0.1.0"
+version = "0.1.1"
 authors = ["thymbahutymba <andrea.stevanato.95@hotmail.it>"]
 license = "LGPL-3.0"
 description = "Library for subspedia.tv"
 
 [dependencies]
+hyper = "*"
+hyper-tls = "*"
+futures = "*"
+tokio = "*"
+serde = "*"
+serde_json = "*"
+serde_derive = "*"

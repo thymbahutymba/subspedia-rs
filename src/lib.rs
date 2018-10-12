@@ -5,8 +5,9 @@ extern crate hyper;
 extern crate hyper_tls;
 extern crate tokio;
 extern crate futures;
-#[macro_use]
-extern crate serde_derive;
+#[macro_use] extern crate serde_derive;
+extern crate failure;
+#[macro_use] extern crate failure_derive;
 extern crate serde;
 extern crate serde_json;
 
@@ -16,9 +17,11 @@ use std::borrow::Cow;
 
 /// An enumeration of possible error which can occur during http requests and the parsing of json
 /// returned by the api
-#[derive(Debug)]
+#[derive(Debug, Fail)]
 pub enum FetchError {
+    #[fail(display="HTTP error: {}", _0)]
     Http(hyper::Error),
+    #[fail(display="JSON parsing error: {}", _0)]
     Json(serde_json::Error),
 }
 
@@ -167,12 +170,7 @@ pub fn get<R: 'static + Request>(req: R) -> Result<Vec<R::Response>, FetchError>
                 tmp.lock().unwrap().append(&mut serie);
             })
             // if there was an error print it
-            .map_err(|e| {
-                match e {
-                    FetchError::Http(e) => eprintln!("http error: {}", e),
-                    FetchError::Json(e) => eprintln!("json parsing error: {}", e),
-                }
-            })
+            .map_err(|e| eprintln!("{}", e))
     }));
 
     Ok(Arc::try_unwrap(result).unwrap().into_inner().unwrap())

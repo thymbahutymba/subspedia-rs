@@ -5,9 +5,11 @@ extern crate hyper;
 extern crate hyper_tls;
 extern crate tokio;
 extern crate futures;
-#[macro_use] extern crate serde_derive;
+#[macro_use]
+extern crate serde_derive;
 extern crate failure;
-#[macro_use] extern crate failure_derive;
+#[macro_use]
+extern crate failure_derive;
 extern crate serde;
 extern crate serde_json;
 
@@ -19,10 +21,12 @@ use std::borrow::Cow;
 /// returned by the api
 #[derive(Debug, Fail)]
 pub enum FetchError {
-    #[fail(display="HTTP error: {}", _0)]
+    #[fail(display = "HTTP error: {}", _0)]
     Http(hyper::Error),
-    #[fail(display="JSON parsing error: {}", _0)]
+    #[fail(display = "JSON parsing error: {}", _0)]
     Json(serde_json::Error),
+    #[fail(display = "{}", _0)]
+    NotFound(String),
 }
 
 impl From<hyper::Error> for FetchError {
@@ -69,14 +73,14 @@ impl Request for ReqSerieTraduzione {
 }
 
 /// Struct for store the television series available on site.
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct Serie {
     id_serie: usize,
-    nome_serie: String,
+    pub nome_serie: String,
     link_serie: String,
     id_thetvdb: usize,
     stato: String,
-    anno: usize
+    anno: usize,
 }
 
 /// Struct to perform the request for the all series available on site.
@@ -105,7 +109,7 @@ pub struct Sottotitolo {
     descrizione: String,
     id_thetvdb: usize,
     data_uscita: String,
-    grazie: usize
+    grazie: usize,
 }
 
 /// Struct to perform the request for the last subtitles translated.
@@ -127,7 +131,7 @@ pub struct ReqSottotitoliSerie {
 impl ReqSottotitoliSerie {
     /// Create a new ReqSottotitoliSerie with the given series id.
     pub fn new(id: usize) -> ReqSottotitoliSerie {
-        ReqSottotitoliSerie {id}
+        ReqSottotitoliSerie { id }
     }
 }
 
@@ -156,7 +160,7 @@ impl Request for ReqSottotitoliSerie {
 ///    println!("{:#?}", subspedia::get(ReqSerieTraduzione).unwrap());
 ///}
 /// ```
-pub fn get<R: 'static + Request>(req: R) -> Result<Vec<R::Response>, FetchError>
+pub fn get<R: 'static + Request>(req: &R) -> Result<Vec<R::Response>, FetchError>
 {
     let url = req.url().parse().unwrap();
     let result = Arc::new(Mutex::new(Vec::new()));
@@ -174,6 +178,75 @@ pub fn get<R: 'static + Request>(req: R) -> Result<Vec<R::Response>, FetchError>
     }));
 
     Ok(Arc::try_unwrap(result).unwrap().into_inner().unwrap())
+}
+
+///Search serie based on a given name
+///
+/// # Errors
+///
+/// Returns error if something gone wrong during http requests, parsing json or if a series with that
+/// name isn't found
+///
+/// # Exemple
+///
+///```
+///extern crate subspedia;
+///
+///use subspedia::{FetchError, search_by_name};
+///
+///fn main() -> Result<(), FetchError> {
+///    println!("{:#?}", search_by_name("serie name")?);
+///    Ok(())
+///}
+/// ```
+pub fn search_by_name(name: &str) -> Result<Vec<Serie>, FetchError> {
+    let result = get(&ReqElencoSerie)?
+        .iter()
+        .filter(|s| s.nome_serie
+            .to_lowercase()
+            .as_str()
+            .contains(name.to_lowercase().as_str())
+        )
+        .collect::<Vec<_>>()
+        .iter()
+        .map(|s| (**s).clone())
+        .collect::<Vec<_>>();
+
+    if !result.is_empty() {
+        Ok(result)
+    } else {
+        Err(FetchError::NotFound(format!("Series with name {} not found", name)))
+    }
+}
+
+///Search the series based on a given id
+///
+/// # Errors
+///
+/// Returns error if something gone wrong during http requests, parsing json or if a series with that
+/// id isn't found
+///
+/// # Exemple
+///
+///```
+/// extern crate subspedia;
+///
+/// use subspedia::{FetchError, search_by_id};
+///
+/// fn main() -> Result<(), FetchError> {
+///    println!("{:#?}", search_by_id(500)?);
+///    Ok(())
+/// }
+/// ```
+pub fn search_by_id(id: usize) -> Result<Serie, FetchError> {
+    match get(&ReqElencoSerie)?
+        .iter()
+        .filter(|s| s.id_serie == id)
+        .collect::<Vec<_>>()
+        .pop() {
+        Some(s) => Ok(s.clone()),
+        None => Err(FetchError::NotFound(format!("Series with id {} not found.", id)))
+    }
 }
 
 fn fetch_json<T>(url: hyper::Uri) -> impl Future<Item=Vec<T>, Error=FetchError>

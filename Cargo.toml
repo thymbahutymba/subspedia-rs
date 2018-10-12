@@ -1,6 +1,6 @@
 [package]
 name = "subspedia-rs"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["thymbahutymba <andrea.stevanato.95@hotmail.it>"]
 license = "LGPL-3.0"
 description = "Library for subspedia.tv"
